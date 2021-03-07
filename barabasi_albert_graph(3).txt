@@ -1,0 +1,116 @@
+#include <random>
+#include <vector>
+#include <windows.h>
+#include "Header.h"
+
+//Barabasi-Albertグラフ
+int** barbasi_albert_graph() {
+	int i, j;
+	int k, l;
+	int** network;
+	network = (int**)malloc(sizeof(int*) * (n + 1));
+	for (i = 0;i < (n + 1);i++) {
+		network[i] = (int*)malloc(sizeof(std::vector<int>*) * (n + 1));
+	}
+	//初期化
+	for (i = 0;i < (n + 1);i++) {
+		for (j = 0;j < (n + 1);j++) {
+			network[i][j] = 0;
+		}
+	}
+	//完全グラフの作成
+	if (n < m) {
+		printf_s("エッジ数がエージェント数を上回っています\n");
+		return 0;
+	}
+	else {
+		for (i = 1;i <= m + 1;i++) {//完全グラフのノード数はエッジ数＋1
+			for (j = 1;j < i;j++) {
+				network[i][j] = j;
+			}
+			for (j = i + 1;j <= m + 1;j++) {//自分自身は飛ばす
+				network[i][j - 1] = j;
+			}
+		}
+	}
+	//ノードの追加
+	std::random_device rd;
+	//乱数生成
+	std::mt19937 mt(rd());
+	//メルセンヌ・ツイスターの初期シードに乱数を使用
+	std::uniform_real_distribution<double> score(0.0, 1.0);
+	//一様分布生成器で範囲を0.0～1.0とする
+	double dice;
+	int neighbors_size = 0;
+	double p;
+	//neighborの数に比例した確率
+	bool done;
+	//確率で既存のノードに追加した場合true、しなかった場合false
+	int turn;
+	std::vector<int> pre;
+	std::vector<int>::iterator index;
+	int number;
+	int by_p = 0;
+	int by_r = 0;
+	//隣人エージェントの大きさのリスト
+	int* size = (int*)malloc(sizeof(int) * (n + 1));
+	int sum_of_size;
+	//大きさの初期値
+	for (i = 1;i <= m + 1;i++) {
+		size[i] = m;
+	}
+	for (i = m + 2;i < n + 1;i++) {
+		size[i] = 0;
+	}
+	for (i = m + 2;i < n + 1;i++) {
+		pre.clear();
+		for (turn = 0;turn < m;turn++) {
+			done = false;
+			sum_of_size = 0;
+			//さいころを振る
+			dice = score(mt);
+			p = dice * ((double)i + 1);
+			for (j = 1;j < i - 1;j++) {
+				if (p < sum_of_size) {
+					index = std::find(pre.begin(), pre.end(), j);
+					//可変長配列内に第3引数の数値があるか判別し、あれば当該インデックスを、なければ配列の最後のインデックスを返す
+					if (index != pre.end()) {
+						//すでにエッジを割り振っているエージェントの場合
+						continue;
+					}//理論的には正しくないが、do…whileを使うとネットワーク生成にかなり時間がかかるので、重複した場合はcontinueで次の処理へ
+					else {
+						size[j]++;
+						network[j][size[j]] = i;
+						//隣人に加える
+						size[i]++;
+						network[i][turn + 1] = j;
+						//隣人とする
+						pre.push_back(j);
+						done = true;
+						by_p++;
+						break;
+					}
+				}
+				sum_of_size += size[j];
+			}//確率で決まらなかった場合、ランダムに振り分ける
+			if (done == false) {
+				do {
+					std::uniform_int_distribution<int> range(1, i - 1);
+					//1から(i-1)番目までの乱数を発生させる
+					number = range(mt);
+					index = std::find(pre.begin(), pre.end(), number);
+				} while (index != pre.end());
+				size[number]++;
+				network[number][size[number]] = i;
+				size[i]++;
+				network[i][turn + 1] = number;
+				pre.push_back(number);
+				by_r++;
+			}
+		}
+	}
+	pre.shrink_to_fit();
+	free(size);
+
+	return network;
+}
